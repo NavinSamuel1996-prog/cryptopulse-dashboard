@@ -4,6 +4,7 @@ import StatTiles from './components/StatTiles';
 import CoinGrid from './components/CoinGrid';
 import TrendChart from './components/TrendChart';
 import { fetchTopCoins, fetchCoinHistory } from './lib/coingecko';
+import { hasSupabase, fetchStoredHistory } from './lib/supabase';
 
 const REFRESH_MS = 60_000;
 
@@ -33,6 +34,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
 
   const [selectedId, setSelectedId] = useState('bitcoin');
+  const [historySource, setHistorySource] = useState('coingecko');
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState(null);
@@ -52,10 +54,10 @@ export default function App() {
     }
   }, []);
 
-  const loadHistory = useCallback(async (coinId) => {
+  const loadHistory = useCallback(async (coinId, sourceToUse) => {
     setHistoryLoading(true);
     try {
-      const data = await fetchCoinHistory(coinId, 7);
+      const data = sourceToUse === 'supabase' ? await fetchStoredHistory(coinId, 48) : await fetchCoinHistory(coinId, 7);
       setHistory(data);
       setHistoryError(null);
     } catch (e) {
@@ -72,8 +74,8 @@ export default function App() {
   }, [loadCoins]);
 
   useEffect(() => {
-    loadHistory(selectedId);
-  }, [selectedId, loadHistory]);
+    loadHistory(selectedId, historySource);
+  }, [selectedId, historySource, loadHistory]);
 
   const selectedCoin = coins.find((c) => c.id === selectedId);
 
@@ -106,6 +108,9 @@ export default function App() {
             points={history}
             loading={historyLoading}
             error={historyError}
+            source={historySource}
+            onSourceChange={setHistorySource}
+            showSourceToggle={hasSupabase}
           />
         </>
       )}
