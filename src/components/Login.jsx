@@ -14,7 +14,12 @@ export default function Login() {
       await sendMagicLink(email.trim());
       setStatus('sent');
     } catch (err) {
-      setError(err.message || 'Something went wrong sending the link.');
+      const message = err.message || '';
+      if (/signup/i.test(message)) {
+        setError("This email doesn't have access yet. Ask the dashboard owner to add you, then try again.");
+      } else {
+        setError(message || 'Something went wrong sending the link.');
+      }
       setStatus('error');
     }
   }
