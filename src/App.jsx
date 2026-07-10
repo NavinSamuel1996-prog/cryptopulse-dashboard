@@ -3,8 +3,9 @@ import Header from './components/Header';
 import StatTiles from './components/StatTiles';
 import CoinGrid from './components/CoinGrid';
 import TrendChart from './components/TrendChart';
+import Login from './components/Login';
 import { fetchTopCoins, fetchCoinHistory } from './lib/coingecko';
-import { hasSupabase, fetchStoredHistory } from './lib/supabase';
+import { hasSupabase, fetchStoredHistory, getSession, onAuthChange, signOut } from './lib/supabase';
 
 const REFRESH_MS = 60_000;
 
@@ -24,8 +25,24 @@ function useTheme() {
   return [resolved, toggle];
 }
 
+function useAuth() {
+  // undefined = still checking, null = signed out, object = signed in
+  const [session, setSession] = useState(undefined);
+  useEffect(() => {
+    if (!hasSupabase) {
+      setSession(null);
+      return;
+    }
+    getSession().then(setSession);
+    const unsubscribe = onAuthChange(setSession);
+    return unsubscribe;
+  }, []);
+  return session;
+}
+
 export default function App() {
   const [theme, toggleTheme] = useTheme();
+  const session = useAuth();
 
   const [coins, setCoins] = useState([]);
   const [coinsLoading, setCoinsLoading] = useState(true);
@@ -79,9 +96,32 @@ export default function App() {
 
   const selectedCoin = coins.find((c) => c.id === selectedId);
 
+  if (session === undefined) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center text-sm"
+        style={{ color: 'var(--text-muted)', background: 'var(--page)' }}
+      >
+        Checking session…
+      </div>
+    );
+  }
+
+  if (hasSupabase && !session) {
+    return <Login />;
+  }
+
   return (
     <div className="max-w-[1320px] mx-auto px-6 pb-16">
-      <Header lastUpdated={lastUpdated} onRefresh={() => loadCoins(true)} refreshing={refreshing} theme={theme} onToggleTheme={toggleTheme} />
+      <Header
+        lastUpdated={lastUpdated}
+        onRefresh={() => loadCoins(true)}
+        refreshing={refreshing}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        userEmail={session?.user?.email}
+        onSignOut={signOut}
+      />
 
       {coinsError && (
         <div
