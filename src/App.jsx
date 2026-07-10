@@ -41,6 +41,7 @@ function useAuth() {
 }
 
 export default function App() {
+  if (new URLSearchParams(window.location.search).get('__crash')) throw new Error('TEMP QA test crash — safe to ignore, will be removed');
   const [theme, toggleTheme] = useTheme();
   const session = useAuth();
 
