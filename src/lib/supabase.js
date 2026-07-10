@@ -20,3 +20,31 @@ export async function fetchStoredHistory(coinId, hours = 48) {
   if (error) throw new Error(error.message);
   return (data || []).map((row) => ({ ts: new Date(row.captured_at).getTime(), price: row.price }));
 }
+
+export async function sendMagicLink(email) {
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin },
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function getSession() {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}
+
+export function onAuthChange(callback) {
+  if (!supabase) return () => {};
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
+  return () => subscription.unsubscribe();
+}
+
+export async function signOut() {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+}
