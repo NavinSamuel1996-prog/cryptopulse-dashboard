@@ -22,7 +22,7 @@ function CustomTooltip({ active, payload }) {
   );
 }
 
-export default function TrendChart({ coinName, coinSymbol, points, loading, error }) {
+export default function TrendChart({ coinName, coinSymbol, points, loading, error, source, onSourceChange, showSourceToggle }) {
   const [showTable, setShowTable] = useState(false);
   const resolvedColor = typeof window !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue('--s1').trim() : '#2a78d6';
 
@@ -46,28 +46,53 @@ export default function TrendChart({ coinName, coinSymbol, points, loading, erro
       className="rounded-2xl border p-5"
       style={{ background: 'var(--surface-1)', borderColor: 'var(--border)', boxShadow: 'var(--shadow)' }}
     >
-      <div className="flex items-start justify-between gap-3 mb-1">
+      <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
         <div>
           <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>
-            {coinName} ({coinSymbol}) — 7 day price
+            {coinName} ({coinSymbol}) — {source === 'supabase' ? 'our tracked history' : '7 day price'}
           </h3>
           <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Source: CoinGecko market_chart, USD
+            {source === 'supabase'
+              ? 'Source: our own price_snapshots table, collected every 15 min'
+              : 'Source: CoinGecko market_chart, USD'}
           </div>
         </div>
-        {!loading && !error && points && points.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowTable((v) => !v)}
-            className="text-[11px] font-semibold rounded-md border px-2.5 py-1 cursor-pointer shrink-0"
-            style={{
-              color: showTable ? 'var(--s1)' : 'var(--text-muted)',
-              borderColor: showTable ? 'var(--s1)' : 'var(--border)',
-            }}
-          >
-            {showTable ? 'View chart' : 'View table'}
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {showSourceToggle && (
+            <div className="flex rounded-md border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+              {[
+                { key: 'coingecko', label: 'CoinGecko · 7d' },
+                { key: 'supabase', label: 'Our database' },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => onSourceChange(opt.key)}
+                  className="text-[11px] font-semibold px-2.5 py-1 cursor-pointer"
+                  style={{
+                    color: source === opt.key ? '#fff' : 'var(--text-muted)',
+                    background: source === opt.key ? 'var(--s1)' : 'transparent',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {!loading && !error && points && points.length >= 2 && (
+            <button
+              type="button"
+              onClick={() => setShowTable((v) => !v)}
+              className="text-[11px] font-semibold rounded-md border px-2.5 py-1 cursor-pointer shrink-0"
+              style={{
+                color: showTable ? 'var(--s1)' : 'var(--text-muted)',
+                borderColor: showTable ? 'var(--s1)' : 'var(--border)',
+              }}
+            >
+              {showTable ? 'View chart' : 'View table'}
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && (
@@ -82,7 +107,15 @@ export default function TrendChart({ coinName, coinSymbol, points, loading, erro
         </div>
       )}
 
-      {!loading && !error && points && points.length > 0 && !showTable && (
+      {!loading && !error && points && points.length < 2 && (
+        <div className="h-72 flex items-center justify-center text-sm text-center px-6" style={{ color: 'var(--text-muted)' }}>
+          {source === 'supabase'
+            ? 'Still collecting — our tracker snapshots prices every 15 minutes, check back shortly for a real trend line.'
+            : 'No data available.'}
+        </div>
+      )}
+
+      {!loading && !error && points && points.length >= 2 && !showTable && (
         <div className="h-72 mt-2">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={points} margin={{ top: 10, right: 88, bottom: 4, left: 4 }}>
@@ -133,7 +166,7 @@ export default function TrendChart({ coinName, coinSymbol, points, loading, erro
         </div>
       )}
 
-      {!loading && !error && points && points.length > 0 && showTable && (
+      {!loading && !error && points && points.length >= 2 && showTable && (
         <div className="mt-3 max-h-72 overflow-auto">
           <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
             <thead>
