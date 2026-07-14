@@ -9,14 +9,18 @@ export const supabase = hasSupabase ? createClient(url, anonKey) : null;
 
 export async function fetchStoredHistory(coinId, hours = 48) {
   if (!supabase) return [];
-  const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
+  let query = supabase
     .from('price_snapshots')
     .select('price, captured_at')
     .eq('coin_id', coinId)
-    .gte('captured_at', since)
     .order('captured_at', { ascending: true });
 
+  if (hours != null) {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    query = query.gte('captured_at', since);
+  }
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data || []).map((row) => ({ ts: new Date(row.captured_at).getTime(), price: row.price }));
 }

@@ -22,13 +22,42 @@ function CustomTooltip({ active, payload }) {
   );
 }
 
-export default function TrendChart({ coinName, coinSymbol, points, loading, error, source, onSourceChange, showSourceToggle }) {
+const RANGE_OPTIONS = [
+  { key: 6, label: '6h' },
+  { key: 24, label: '24h' },
+  { key: 72, label: '3d' },
+  { key: 168, label: '7d' },
+  { key: null, label: 'All' },
+];
+
+export default function TrendChart({
+  coinName,
+  coinSymbol,
+  points,
+  loading,
+  error,
+  source,
+  onSourceChange,
+  showSourceToggle,
+  rangeHours,
+  onRangeChange,
+}) {
   const [showTable, setShowTable] = useState(false);
   const resolvedColor = typeof window !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue('--s1').trim() : '#2a78d6';
 
   const last = points && points.length ? points[points.length - 1] : null;
-  const dayTicks = useMemo(() => {
+  const isShortRange = points && points.length > 1 && points[points.length - 1].ts - points[0].ts < 36 * 60 * 60 * 1000;
+
+  const xTicks = useMemo(() => {
     if (!points || points.length === 0) return [];
+    if (isShortRange) {
+      const n = points.length;
+      const step = Math.max(1, Math.floor(n / 6));
+      const ticks = [];
+      for (let i = 0; i < n; i += step) ticks.push(points[i].ts);
+      if (ticks[ticks.length - 1] !== points[n - 1].ts) ticks.push(points[n - 1].ts);
+      return ticks;
+    }
     const seen = new Set();
     const ticks = [];
     points.forEach((p) => {
@@ -39,7 +68,7 @@ export default function TrendChart({ coinName, coinSymbol, points, loading, erro
       }
     });
     return ticks;
-  }, [points]);
+  }, [points, isShortRange]);
 
   return (
     <div
@@ -49,7 +78,10 @@ export default function TrendChart({ coinName, coinSymbol, points, loading, erro
       <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
         <div>
           <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text-primary)' }}>
-            {coinName} ({coinSymbol}) — {source === 'supabase' ? 'our tracked history' : '7 day price'}
+            {coinName} ({coinSymbol}) —{' '}
+            {source === 'supabase'
+              ? `our tracked history (${RANGE_OPTIONS.find((r) => r.key === rangeHours)?.label || 'all'})`
+              : '7 day price'}
           </h3>
           <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
             {source === 'supabase'
@@ -95,6 +127,26 @@ export default function TrendChart({ coinName, coinSymbol, points, loading, erro
         </div>
       </div>
 
+      {source === 'supabase' && (
+        <div className="flex items-center gap-1.5 mb-3">
+          {RANGE_OPTIONS.map((opt) => (
+            <button
+              key={String(opt.key)}
+              type="button"
+              onClick={() => onRangeChange(opt.key)}
+              className="text-[11px] font-semibold rounded-full px-2.5 py-1 cursor-pointer border"
+              style={{
+                color: rangeHours === opt.key ? '#fff' : 'var(--text-muted)',
+                background: rangeHours === opt.key ? 'var(--s2)' : 'transparent',
+                borderColor: rangeHours === opt.key ? 'var(--s2)' : 'var(--border)',
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading && (
         <div className="h-72 flex items-center justify-center text-sm" style={{ color: 'var(--text-muted)' }}>
           Loading chart…
@@ -124,8 +176,12 @@ export default function TrendChart({ coinName, coinSymbol, points, loading, erro
                 dataKey="ts"
                 type="number"
                 domain={['dataMin', 'dataMax']}
-                ticks={dayTicks}
-                tickFormatter={(ts) => new Date(ts).toLocaleDateString(undefined, { weekday: 'short' })}
+                ticks={xTicks}
+                tickFormatter={(ts) =>
+                  isShortRange
+                    ? new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+                    : new Date(ts).toLocaleDateString(undefined, { weekday: 'short' })
+                }
                 stroke="var(--baseline)"
                 tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                 tickLine={false}
@@ -181,7 +237,7 @@ export default function TrendChart({ coinName, coinSymbol, points, loading, erro
             </thead>
             <tbody>
               {points
-                .filter((_, i) => i % 6 === 0)
+                .filter((_, i) => i % Math.max(1, Math.ceil(points.length / 50)) === 0)
                 .map((p) => (
                   <tr key={p.ts} style={{ borderTop: '1px solid var(--grid)' }}>
                     <td className="py-1.5 px-2" style={{ color: 'var(--text-secondary)' }}>
