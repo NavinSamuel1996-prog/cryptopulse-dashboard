@@ -52,6 +52,7 @@ export default function App() {
 
   const [selectedId, setSelectedId] = useState('bitcoin');
   const [historySource, setHistorySource] = useState('coingecko');
+  const [historyRangeHours, setHistoryRangeHours] = useState(24);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState(null);
@@ -71,10 +72,11 @@ export default function App() {
     }
   }, []);
 
-  const loadHistory = useCallback(async (coinId, sourceToUse) => {
+  const loadHistory = useCallback(async (coinId, sourceToUse, rangeHours) => {
     setHistoryLoading(true);
     try {
-      const data = sourceToUse === 'supabase' ? await fetchStoredHistory(coinId, 48) : await fetchCoinHistory(coinId, 7);
+      const data =
+        sourceToUse === 'supabase' ? await fetchStoredHistory(coinId, rangeHours) : await fetchCoinHistory(coinId, 7);
       setHistory(data);
       setHistoryError(null);
     } catch (e) {
@@ -91,8 +93,8 @@ export default function App() {
   }, [loadCoins]);
 
   useEffect(() => {
-    loadHistory(selectedId, historySource);
-  }, [selectedId, historySource, loadHistory]);
+    loadHistory(selectedId, historySource, historyRangeHours);
+  }, [selectedId, historySource, historyRangeHours, loadHistory]);
 
   const selectedCoin = coins.find((c) => c.id === selectedId);
 
@@ -151,6 +153,8 @@ export default function App() {
             source={historySource}
             onSourceChange={setHistorySource}
             showSourceToggle={hasSupabase}
+            rangeHours={historyRangeHours}
+            onRangeChange={setHistoryRangeHours}
           />
         </>
       )}
